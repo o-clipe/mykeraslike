@@ -28,10 +28,10 @@ B1 = np.zeros(512)
 W2 = np.random.randn(512, 10)
 B2 = np.zeros(10)
 
-mW1 = np.ones(shape=(28*28, 512))
-mB1 = np.ones(shape=(512))
-mW2 = np.ones(shape=(512, 10))
-mB2 = np.ones(shape=(10))
+aW1 = np.ones(shape=(28 * 28, 512))
+aB1 = np.ones(shape=(512))
+aW2 = np.ones(shape=(512, 10))
+aB2 = np.ones(shape=(10))
 
 sdW1 = np.ones(shape=(28*28, 512))
 sdB1 = np.ones(shape=(512))
@@ -78,36 +78,36 @@ def get_signs(G):
     return G > 0.
 
 def update_momentum(dW1, dB1, dW2, dB2):
-    global mW1, mW2, mB1, mB2
+    global aW1, aW2, aB1, aB2
     global sdW1, sdW2, sdB1, sdB2
 
     signs = get_signs(dW1)
     sW1 = (sdW1 == signs)
     sdW1 = signs
     sW1 = np.select([sW1 is True, sW1 is False], [1.2, 0.5], 1.)
-    mW1 = np.multiply(mW1, sW1)
-    mW1 = np.select([mW1 > 100, mW1 < 1e-8], [100., 1e-8], mW1)
+    aW1 = np.multiply(aW1, sW1)
+    aW1 = np.select([aW1 > 100, aW1 < 1e-8], [100., 1e-8], aW1)
 
     signs = get_signs(dW2)
     sW2 = (sdW2 == signs)
     sdW2 = signs
     sW2 = np.select([sW2 is True, sW2 is False], [1.2, 0.5], 1.)
-    mW2 = np.multiply(mW2, sW2)
-    mW2 = np.select([mW2 > 100, mW2 < 1e-8], [100., 1e-8], mW2)
+    aW2 = np.multiply(aW2, sW2)
+    aW2 = np.select([aW2 > 100, aW2 < 1e-8], [100., 1e-8], aW2)
 
     signs = get_signs(dB1)
     sB1 = (sdB1 == signs)
     sdB1 = signs
     sB1 = np.select([sB1 is True, sB1 is False], [1.2, 0.5], 1.)
-    mB1 = np.multiply(mB1, sB1)
-    mB1 = np.select([mB1 > 100, mB1 < 1e-8], [100., 1e-8], mB1)
+    aB1 = np.multiply(aB1, sB1)
+    aB1 = np.select([aB1 > 100, aB1 < 1e-8], [100., 1e-8], aB1)
 
     signs = get_signs(dB2)
     sB2 = (sdB2 == signs)
     sdB2 = signs
     sB2 = np.select([sB2 is True, sB2 is False], [1.2, 0.5], 1.)
-    mB2 = np.multiply(mB2, sB2)
-    mB2 = np.select([mB2 > 100, mB2 < 1e-5], [100., 1e-8], mB2)
+    aB2 = np.multiply(aB2, sB2)
+    aB2 = np.select([aB2 > 100, aB2 < 1e-5], [100., 1e-8], aB2)
 
 
 def predict_batch(X):
@@ -138,9 +138,9 @@ def back_prop(X, Z1, A1, Z2, A2, Y):
     dB1 = dZ1
     return dW1, dB1, dW2, dB2
 
-def train(x, y, epochs=10, lr=0.1, momentum=0.1):
+def train(x, y, epochs=10, lr=0.1, acceleration=0.1):
     global W1, W2, B1, B2
-    global mW1, mW2, mB1, mB2
+    global aW1, aW2, aB1, aB2
 
     for e in range(epochs):
         print("epoch:", e, end="")
@@ -153,15 +153,15 @@ def train(x, y, epochs=10, lr=0.1, momentum=0.1):
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
             # print(np.sum(mW1))
             # print(np.sum(mW2))
-            if momentum > 0:
+            if acceleration > 0:
                 update_momentum(dW1, dB1, dW2, dB2)
-            W1 = np.subtract(W1, dW1 / RMS(dW1) * (lr * (1 - momentum) + mW1 * momentum))
-            B1 = np.subtract(B1, dB1 / RMS(dB1) * (lr * (1 - momentum) + mB1 * momentum))
-            W2 = np.subtract(W2, dW2 / RMS(dW2) * (lr * (1 - momentum) + mW2 * momentum))
-            B2 = np.subtract(B2, dB2 / RMS(dB2) * (lr * (1 - momentum) + mB2 * momentum))
+            W1 = np.subtract(W1, dW1 / RMS(dW1) * lr * ((1 - acceleration) + aW1 * acceleration))
+            B1 = np.subtract(B1, dB1 / RMS(dB1) * lr * ((1 - acceleration) + aB1 * acceleration))
+            W2 = np.subtract(W2, dW2 / RMS(dW2) * lr * ((1 - acceleration) + aW2 * acceleration))
+            B2 = np.subtract(B2, dB2 / RMS(dB2) * lr * ((1 - acceleration) + aB2 * acceleration))
 
 
-train(x_train[:100], y_train[:100], epochs=100, lr=0.001, momentum=0.1)
+train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001, acceleration=0.1)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
