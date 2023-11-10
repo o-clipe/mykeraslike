@@ -42,6 +42,9 @@ def SoftMax(Z):
 def SoftMax_grad(Z):
     return np.exp(Z) / np.square(np.sum(np.exp(Z)))
 
+def RMS(G):
+    return np.sqrt(np.sum(np.square(G)))
+
 
 def calc_loss(Y, y):
     log_arr = np.array([-1 * np.log(Y[i, np.argmax(y[i])]) for i in range(len(Y))])
@@ -95,13 +98,13 @@ def train(x, y, epochs=10, lr=0.1):
         print(" acc: ", calc_acc(pred, y_train))
         for p in range(len(x)):
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
-            W1 = np.subtract(W1, dW1 * lr)
-            B1 = np.subtract(B1, dB1 * lr)
-            W2 = np.subtract(W2, dW2 * lr)
-            B2 = np.subtract(B2, dB2 * lr)
+            W1 = np.subtract(W1, dW1 / RMS(dW1) * lr)
+            B1 = np.subtract(B1, dB1 / RMS(dB1) * lr)
+            W2 = np.subtract(W2, dW2 / RMS(dW2) * lr)
+            B2 = np.subtract(B2, dB2 / RMS(dB2) * lr)
 
 
-train(x_train[:100], y_train[:100], epochs=10000, lr=0.1)
+train(x_train[:1000], y_train[:1000], epochs=10000, lr=0.01)
 
 
 
