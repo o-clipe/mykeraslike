@@ -43,7 +43,7 @@ def SoftMax_grad(Z):
     return np.exp(Z) / np.square(np.sum(np.exp(Z)))
 
 def RMS(G):
-    return np.sqrt(np.mean(np.square(G)))
+    return np.sqrt(np.mean(np.square(G)) + 1e-8)
 
 
 def calc_loss(Y, y):
