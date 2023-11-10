@@ -43,7 +43,7 @@ def SoftMax_grad(Z):
     return np.exp(Z) / np.square(np.sum(np.exp(Z)))
 
 def RMS(G):
-    return np.sqrt(np.sum(np.square(G)))
+    return np.sqrt(np.mean(np.square(G)))
 
 
 def calc_loss(Y, y):
@@ -106,8 +106,9 @@ def train(x, y, epochs=10, lr=0.1):
             B2 = np.subtract(B2, dB2 / RMS(dB2) * lr)
 
 
-train(x_train[:1000], y_train[:1000], epochs=10000, lr=0.01)
+train(x_train, y_train, epochs=10, lr=0.001)
 
+print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
 
 
