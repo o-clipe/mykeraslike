@@ -96,7 +96,9 @@ def train(x, y, epochs=10, lr=0.1):
         pred = predict_batch(x)
         print(" loss:", calc_loss(pred, y_train), end="")
         print(" acc: ", calc_acc(pred, y_train))
-        for p in range(len(x)):
+        range_ = np.arange(len(x))
+        np.random.shuffle(range_)
+        for p in range_:
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
             W1 = np.subtract(W1, dW1 / RMS(dW1) * lr)
             B1 = np.subtract(B1, dB1 / RMS(dB1) * lr)
