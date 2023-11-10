@@ -46,7 +46,7 @@ def ReLU_grad(Z):
 
 
 def SoftMax(Z):
-    return np.exp(Z) / np.sum(np.exp(Z))
+    return np.divide(np.exp(Z), np.sum(np.exp(Z), axis=-1).reshape(-1, 1), )
 
 def SoftMax_grad(Z):
     return 1.
@@ -59,7 +59,10 @@ def RMS(G):
 
 def calc_loss(Y, y):
     log_arr = np.array([-1 * np.log(Y[i][np.argmax(y[i])]) for i in range(len(Y))])
+    # print(Y[1])
+    # print(y[1])
     # print(" loss of 1: ", Y[1][np.argmax(y[1])], "to", np.log(Y[1][np.argmax(y[1])]), end=" ")
+    # print(np.sum(log_arr))
     return np.average(log_arr)
 
 
@@ -104,7 +107,7 @@ def update_momentum(dW1, dB1, dW2, dB2):
     sdB2 = signs
     sB2 = np.select([sB2 is True, sB2 is False], [1.2, 0.5], 1.)
     mB2 = np.multiply(mB2, sB2)
-    mB2 = np.select([mB2 > 100, mB2 < 1e-8], [100., 1e-8], mB2)
+    mB2 = np.select([mB2 > 100, mB2 < 1e-5], [100., 1e-8], mB2)
 
 
 def predict_batch(X):
@@ -158,7 +161,7 @@ def train(x, y, epochs=10, lr=0.1, momentum=0.1):
             B2 = np.subtract(B2, dB2 / RMS(dB2) * (lr * (1 - momentum) + mB2 * momentum))
 
 
-train(x_train[:10], y_train[:10], epochs=100, lr=0.001, momentum=0.1)
+train(x_train[:100], y_train[:100], epochs=100, lr=0.001, momentum=0.1)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
