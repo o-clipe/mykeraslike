@@ -28,6 +28,15 @@ B1 = np.zeros(512)
 W2 = np.random.randn(512, 10)
 B2 = np.zeros(10)
 
+mW1 = np.ones(shape=(28*28, 512))
+mB1 = np.ones(shape=(512))
+mW2 = np.ones(shape=(512, 10))
+mB2 = np.ones(shape=(10))
+
+sdW1 = np.ones(shape=(28*28, 512))
+sdB1 = np.ones(shape=(512))
+sdW2 = np.ones(shape=(512, 10))
+sdB2 = np.ones(shape=(10))
 
 def ReLU(Z):
     return np.multiply(Z > 0., Z)
@@ -40,7 +49,9 @@ def SoftMax(Z):
     return np.exp(Z) / np.sum(np.exp(Z))
 
 def SoftMax_grad(Z):
-    return np.exp(Z) / np.square(np.sum(np.exp(Z)))
+    return 1.
+    # ignore this bullshit, messes everything up
+    # return np.exp(Z) / (np.square(np.sum(np.exp(Z))) + 1e-8)
 
 def RMS(G):
     return np.sqrt(np.mean(np.square(G)) + 1e-8)
@@ -58,6 +69,42 @@ def calc_loss(Y, y):
 def calc_acc(Y, y):
     acc_arr = np.array([np.argmax(Y[i]) == np.argmax(y[i]) for i in range(len(Y))]).astype('float32')
     return np.average(acc_arr)
+
+
+def get_signs(G):
+    return G > 0.
+
+def update_momentum(dW1, dB1, dW2, dB2):
+    global mW1, mW2, mB1, mB2
+    global sdW1, sdW2, sdB1, sdB2
+
+    signs = get_signs(dW1)
+    sW1 = (sdW1 == signs)
+    sdW1 = signs
+    sW1 = np.select([sW1 is True, sW1 is False], [1.2, 0.5], 1.)
+    mW1 = np.multiply(mW1, sW1)
+    mW1 = np.select([mW1 > 100, mW1 < 1e-8], [100., 1e-8], mW1)
+
+    signs = get_signs(dW2)
+    sW2 = (sdW2 == signs)
+    sdW2 = signs
+    sW2 = np.select([sW2 is True, sW2 is False], [1.2, 0.5], 1.)
+    mW2 = np.multiply(mW2, sW2)
+    mW2 = np.select([mW2 > 100, mW2 < 1e-8], [100., 1e-8], mW2)
+
+    signs = get_signs(dB1)
+    sB1 = (sdB1 == signs)
+    sdB1 = signs
+    sB1 = np.select([sB1 is True, sB1 is False], [1.2, 0.5], 1.)
+    mB1 = np.multiply(mB1, sB1)
+    mB1 = np.select([mB1 > 100, mB1 < 1e-8], [100., 1e-8], mB1)
+
+    signs = get_signs(dB2)
+    sB2 = (sdB2 == signs)
+    sdB2 = signs
+    sB2 = np.select([sB2 is True, sB2 is False], [1.2, 0.5], 1.)
+    mB2 = np.multiply(mB2, sB2)
+    mB2 = np.select([mB2 > 100, mB2 < 1e-8], [100., 1e-8], mB2)
 
 
 def predict_batch(X):
@@ -88,9 +135,10 @@ def back_prop(X, Z1, A1, Z2, A2, Y):
     dB1 = dZ1
     return dW1, dB1, dW2, dB2
 
-
-def train(x, y, epochs=10, lr=0.1):
+def train(x, y, epochs=10, lr=0.1, momentum=0.1):
     global W1, W2, B1, B2
+    global mW1, mW2, mB1, mB2
+
     for e in range(epochs):
         print("epoch:", e, end="")
         pred = predict_batch(x)
@@ -100,13 +148,17 @@ def train(x, y, epochs=10, lr=0.1):
         np.random.shuffle(range_)
         for p in range_:
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
-            W1 = np.subtract(W1, dW1 / RMS(dW1) * lr)
-            B1 = np.subtract(B1, dB1 / RMS(dB1) * lr)
-            W2 = np.subtract(W2, dW2 / RMS(dW2) * lr)
-            B2 = np.subtract(B2, dB2 / RMS(dB2) * lr)
+            # print(np.sum(mW1))
+            # print(np.sum(mW2))
+            if momentum > 0:
+                update_momentum(dW1, dB1, dW2, dB2)
+            W1 = np.subtract(W1, dW1 / RMS(dW1) * (lr * (1 - momentum) + mW1 * momentum))
+            B1 = np.subtract(B1, dB1 / RMS(dB1) * (lr * (1 - momentum) + mB1 * momentum))
+            W2 = np.subtract(W2, dW2 / RMS(dW2) * (lr * (1 - momentum) + mW2 * momentum))
+            B2 = np.subtract(B2, dB2 / RMS(dB2) * (lr * (1 - momentum) + mB2 * momentum))
 
 
-train(x_train, y_train, epochs=10, lr=0.001)
+train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001, momentum=0.1)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
