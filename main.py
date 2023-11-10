@@ -58,9 +58,9 @@ def RMS(G):
 
 
 def calc_loss(Y, y):
-    log_arr = np.array([-1 * np.log(Y[i, np.argmax(y[i])]) for i in range(len(Y))])
-    # print(" loss of 1: ", Y[1][np.argmax(y[1])], "to", np.log(Y[1, np.argmax(y[1])]), end=" ")
-    return np.mean(log_arr)
+    log_arr = np.array([-1 * np.log(Y[i][np.argmax(y[i])]) for i in range(len(Y))])
+    # print(" loss of 1: ", Y[1][np.argmax(y[1])], "to", np.log(Y[1][np.argmax(y[1])]), end=" ")
+    return np.average(log_arr)
 
 
 # def calc_loss(Y, y):
@@ -158,7 +158,7 @@ def train(x, y, epochs=10, lr=0.1, momentum=0.1):
             B2 = np.subtract(B2, dB2 / RMS(dB2) * (lr * (1 - momentum) + mB2 * momentum))
 
 
-train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001, momentum=0.1)
+train(x_train[:10], y_train[:10], epochs=100, lr=0.001, momentum=0.1)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
