@@ -144,7 +144,6 @@ def back_prop(X, Z1, A1, Z2, A2, Y):
 
 def train(x, y, epochs=10, lr=0.1):
     global W1, W2, B1, B2
-    global sgW1, sgW2, sgB1, sgB2
 
     for e in range(epochs):
         print("epoch:", e, end="")
@@ -165,13 +164,3 @@ def train(x, y, epochs=10, lr=0.1):
 train(x_train, y_train, epochs=10, lr=0.001)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
-
-
-
-
-
-
-
-
-
-
