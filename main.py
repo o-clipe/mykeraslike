@@ -14,7 +14,7 @@ x_test = np.array(x_test).astype('float32') / 255
 x_test = x_test.reshape(10000, 28*28)
 
 
-def one_hot_encode(Y: np.ndarray):
+def one_hot_encode(Y):
     y = np.zeros(shape=(Y.shape + (np.max(Y) + 1,)))
     y[np.arange(Y.size), Y] = 1.
     return y
@@ -28,15 +28,10 @@ B1 = np.zeros(512)
 W2 = np.random.randn(512, 10)
 B2 = np.zeros(10)
 
-aW1 = np.ones(shape=(28 * 28, 512))
-aB1 = np.ones(shape=(512))
-aW2 = np.ones(shape=(512, 10))
-aB2 = np.ones(shape=(10))
-
-sdW1 = np.ones(shape=(28*28, 512))
-sdB1 = np.ones(shape=(512))
-sdW2 = np.ones(shape=(512, 10))
-sdB2 = np.ones(shape=(10))
+sgW1 = np.ones(shape=(28*28, 512))
+sgB1 = np.ones(shape=(512))
+sgW2 = np.ones(shape=(512, 10))
+sgB2 = np.ones(shape=(10))
 
 def ReLU(Z):
     return np.multiply(Z > 0., Z)
@@ -49,12 +44,12 @@ def SoftMax(Z):
     return np.divide(np.exp(Z), np.sum(np.exp(Z), axis=-1).reshape(-1, 1), )
 
 def SoftMax_grad(Z):
-    return 1.
+    # return 1.
     # ignore this bullshit, messes everything up
-    # return np.exp(Z) / (np.square(np.sum(np.exp(Z))) + 1e-8)
+    return np.exp(Z) / (np.square(np.sum(np.exp(Z))) + 1e-8)
 
-def RMS(G):
-    return np.sqrt(np.mean(np.square(G)) + 1e-8)
+def calc_moving_gradient(sG, G):
+    return 0.9 * sG + 0.1 * np.square(G)
 
 
 def calc_loss(Y, y):
@@ -77,7 +72,7 @@ def calc_acc(Y, y):
 def get_signs(G):
     return G > 0.
 
-def update_momentum(dW1, dB1, dW2, dB2):
+def update_RProp(dW1, dB1, dW2, dB2):
     global aW1, aW2, aB1, aB2
     global sdW1, sdW2, sdB1, sdB2
 
@@ -86,28 +81,37 @@ def update_momentum(dW1, dB1, dW2, dB2):
     sdW1 = signs
     sW1 = np.select([sW1 is True, sW1 is False], [1.2, 0.5], 1.)
     aW1 = np.multiply(aW1, sW1)
-    aW1 = np.select([aW1 > 100, aW1 < 1e-8], [100., 1e-8], aW1)
+    aW1 = np.select([aW1 > 50, aW1 < 1e-6], [50., 1e-6], aW1)
 
     signs = get_signs(dW2)
     sW2 = (sdW2 == signs)
     sdW2 = signs
     sW2 = np.select([sW2 is True, sW2 is False], [1.2, 0.5], 1.)
     aW2 = np.multiply(aW2, sW2)
-    aW2 = np.select([aW2 > 100, aW2 < 1e-8], [100., 1e-8], aW2)
+    aW2 = np.select([aW2 > 50, aW2 < 1e-6], [50., 1e-6], aW2)
 
     signs = get_signs(dB1)
     sB1 = (sdB1 == signs)
     sdB1 = signs
     sB1 = np.select([sB1 is True, sB1 is False], [1.2, 0.5], 1.)
     aB1 = np.multiply(aB1, sB1)
-    aB1 = np.select([aB1 > 100, aB1 < 1e-8], [100., 1e-8], aB1)
+    aB1 = np.select([aB1 > 50, aB1 < 1e-6], [50., 1e-6], aB1)
 
     signs = get_signs(dB2)
     sB2 = (sdB2 == signs)
     sdB2 = signs
     sB2 = np.select([sB2 is True, sB2 is False], [1.2, 0.5], 1.)
     aB2 = np.multiply(aB2, sB2)
-    aB2 = np.select([aB2 > 100, aB2 < 1e-5], [100., 1e-8], aB2)
+    aB2 = np.select([aB2 > 50, aB2 < 1e-6], [50., 1e-6], aB2)
+
+
+def update_RMSProp(dW1, dB1, dW2, dB2):
+    global sgW1, sgW2, sgB1, sgB2
+    sgW1 = calc_moving_gradient(sgW1, dW1)
+    sgB1 = calc_moving_gradient(sgB1, dB1)
+    sgW2 = calc_moving_gradient(sgW2, dW2)
+    sgB2 = calc_moving_gradient(sgB2, dB2)
+    return np.sqrt(sgW1) + 1e-8, np.sqrt(sgB1) + 1e-8, np.sqrt(sgW2) + 1e-8, np.sqrt(sgB2) + 1e-8
 
 
 def predict_batch(X):
@@ -138,9 +142,9 @@ def back_prop(X, Z1, A1, Z2, A2, Y):
     dB1 = dZ1
     return dW1, dB1, dW2, dB2
 
-def train(x, y, epochs=10, lr=0.1, acceleration=0.1):
+def train(x, y, epochs=10, lr=0.1):
     global W1, W2, B1, B2
-    global aW1, aW2, aB1, aB2
+    global sgW1, sgW2, sgB1, sgB2
 
     for e in range(epochs):
         print("epoch:", e, end="")
@@ -151,17 +155,14 @@ def train(x, y, epochs=10, lr=0.1, acceleration=0.1):
         np.random.shuffle(range_)
         for p in range_:
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
-            # print(np.sum(mW1))
-            # print(np.sum(mW2))
-            if acceleration > 0:
-                update_momentum(dW1, dB1, dW2, dB2)
-            W1 = np.subtract(W1, dW1 / RMS(dW1) * lr * ((1 - acceleration) + aW1 * acceleration))
-            B1 = np.subtract(B1, dB1 / RMS(dB1) * lr * ((1 - acceleration) + aB1 * acceleration))
-            W2 = np.subtract(W2, dW2 / RMS(dW2) * lr * ((1 - acceleration) + aW2 * acceleration))
-            B2 = np.subtract(B2, dB2 / RMS(dB2) * lr * ((1 - acceleration) + aB2 * acceleration))
+            rmsW1, rmsB1, rmsW2, rmsB2 = update_RMSProp(dW1, dB1, dW2, dB2)
+            W1 = np.subtract(W1, dW1 / rmsW1 * lr)
+            B1 = np.subtract(B1, dB1 / rmsB1 * lr)
+            W2 = np.subtract(W2, dW2 / rmsW2 * lr)
+            B2 = np.subtract(B2, dB2 / rmsB2 * lr)
 
 
-train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001, acceleration=0.1)
+train(x_train, y_train, epochs=10, lr=0.001)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
 
