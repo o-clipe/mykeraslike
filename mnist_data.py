@@ -47,7 +47,7 @@ class MnistDataloader(object):
         return (x_train, y_train), (x_test, y_test)
 
 
-input_path = '/home/lucas/repos/mykeraslike/archive'
+input_path = './archive'
 training_images_filepath = join(input_path, 'train-images.idx3-ubyte')
 training_labels_filepath = join(input_path, 'train-labels.idx1-ubyte')
 test_images_filepath = join(input_path, 't10k-images.idx3-ubyte')
