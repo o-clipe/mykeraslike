@@ -41,12 +41,14 @@ def ReLU_grad(Z):
 
 
 def SoftMax(Z):
-    return np.divide(np.exp(Z), np.sum(np.exp(Z), axis=-1).reshape(-1, 1), )
+    actual_expZ = np.exp(Z - np.max(Z))
+    return np.divide(actual_expZ, np.sum(actual_expZ, axis=-1).reshape(-1, 1))
 
 def SoftMax_grad(Z):
     # return 1.
     # ignore this bullshit, messes everything up
-    return np.exp(Z) / (np.square(np.sum(np.exp(Z))) + 1e-8)
+    actual_expZ = np.exp(Z - np.max(Z))
+    return np.divide(actual_expZ, np.square(np.sum(actual_expZ, axis=-1)).reshape(-1, 1))
 
 def calc_moving_gradient(sG, G):
     return 0.9 * sG + 0.1 * np.square(G)
@@ -111,7 +113,7 @@ def update_RMSProp(dW1, dB1, dW2, dB2):
     sgB1 = calc_moving_gradient(sgB1, dB1)
     sgW2 = calc_moving_gradient(sgW2, dW2)
     sgB2 = calc_moving_gradient(sgB2, dB2)
-    return np.sqrt(sgW1) + 1e-8, np.sqrt(sgB1) + 1e-8, np.sqrt(sgW2) + 1e-8, np.sqrt(sgB2) + 1e-8
+    return np.sqrt(sgW1) + 1e-7, np.sqrt(sgB1) + 1e-7, np.sqrt(sgW2) + 1e-7, np.sqrt(sgB2) + 1e-7
 
 
 def predict_batch(X):
@@ -161,6 +163,6 @@ def train(x, y, epochs=10, lr=0.1):
             B2 = np.subtract(B2, dB2 / rmsB2 * lr)
 
 
-train(x_train, y_train, epochs=10, lr=0.001)
+train(x_train[:1000], y_train[:1000], epochs=100, lr=0.001)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
