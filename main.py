@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import random
 
 from mnist_data import *
 
@@ -46,9 +44,6 @@ def SoftMax(Z):
 
 def CrossEntropy(Y, y):
     log_arr = np.sum(np.array(-1 * y * np.log(np.clip(Y, 1e-7, 1 - 1e-7))), axis=-1)
-    # print("true:", y)
-    # print("pred:", Y)
-    # print("loss:", log_arr)
     return np.average(log_arr)
 
 
@@ -64,49 +59,13 @@ def calc_acc(Y, y):
     return np.average(acc_arr)
 
 
-def get_signs(G):
-    return G > 0.
-
-def update_RProp(dW1, dB1, dW2, dB2):
-    global aW1, aW2, aB1, aB2
-    global sdW1, sdW2, sdB1, sdB2
-
-    signs = get_signs(dW1)
-    sW1 = (sdW1 == signs)
-    sdW1 = signs
-    sW1 = np.select([sW1 is True, sW1 is False], [1.2, 0.5], 1.)
-    aW1 = np.multiply(aW1, sW1)
-    aW1 = np.select([aW1 > 50, aW1 < 1e-6], [50., 1e-6], aW1)
-
-    signs = get_signs(dW2)
-    sW2 = (sdW2 == signs)
-    sdW2 = signs
-    sW2 = np.select([sW2 is True, sW2 is False], [1.2, 0.5], 1.)
-    aW2 = np.multiply(aW2, sW2)
-    aW2 = np.select([aW2 > 50, aW2 < 1e-6], [50., 1e-6], aW2)
-
-    signs = get_signs(dB1)
-    sB1 = (sdB1 == signs)
-    sdB1 = signs
-    sB1 = np.select([sB1 is True, sB1 is False], [1.2, 0.5], 1.)
-    aB1 = np.multiply(aB1, sB1)
-    aB1 = np.select([aB1 > 50, aB1 < 1e-6], [50., 1e-6], aB1)
-
-    signs = get_signs(dB2)
-    sB2 = (sdB2 == signs)
-    sdB2 = signs
-    sB2 = np.select([sB2 is True, sB2 is False], [1.2, 0.5], 1.)
-    aB2 = np.multiply(aB2, sB2)
-    aB2 = np.select([aB2 > 50, aB2 < 1e-6], [50., 1e-6], aB2)
-
-
 def update_RMSProp(dW1, dB1, dW2, dB2):
     global vW1, vW2, vB1, vB2
     vW1 = calc_moving_gradient(vW1, dW1)
     vB1 = calc_moving_gradient(vB1, dB1)
     vW2 = calc_moving_gradient(vW2, dW2)
     vB2 = calc_moving_gradient(vB2, dB2)
-    return np.sqrt(vW1) + 1e-7, np.sqrt(vB1) + 1e-7, np.sqrt(vW2) + 1e-7, np.sqrt(vB2) + 1e-7
+    return np.sqrt(vW1 + 1e-7),  np.sqrt(vB1 + 1e-7), np.sqrt(vW2 + 1e-7), np.sqrt(vB2 + 1e-7)
 
 
 def predict_batch(X):
@@ -141,17 +100,13 @@ def train(x, y, epochs=10, lr=0.001):
     global W1, W2, B1, B2, vW1, vW2, vB1, vB2
 
     for e in range(epochs):
-        # print("W1:", W1)
-        # print("B1:", B1)
-        # print("W2:", W1)
-        # print("B2:", B2)
         print("epoch:", e, end="")
         pred = predict_batch(x)
         print(" loss:", CrossEntropy(pred, y), end="")
         print(" acc: ", calc_acc(pred, y))
 
         range_ = np.arange(len(x))
-        # np.random.shuffle(range_)
+        np.random.shuffle(range_)
         for p in range_:
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
             rmsW1, rmsB1, rmsW2, rmsB2 = update_RMSProp(dW1, dB1, dW2, dB2)
@@ -166,6 +121,6 @@ def train(x, y, epochs=10, lr=0.001):
     print(" acc: ", calc_acc(pred, y))
 
 
-train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001)
+train(x_train[:1000], y_train[:1000], epochs=100, lr=0.001)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
