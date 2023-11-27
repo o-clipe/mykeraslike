@@ -28,10 +28,10 @@ B1 = np.zeros(512)
 W2 = np.random.randn(512, 10)
 B2 = np.zeros(10)
 
-sgW1 = np.ones(shape=(28*28, 512))
-sgB1 = np.ones(shape=(512))
-sgW2 = np.ones(shape=(512, 10))
-sgB2 = np.ones(shape=(10))
+vW1 = np.ones(shape=(28 * 28, 512))
+vB1 = np.ones(shape=(512))
+vW2 = np.ones(shape=(512, 10))
+vB2 = np.ones(shape=(10))
 
 def ReLU(Z):
     return np.multiply(Z > 0., Z)
@@ -41,30 +41,23 @@ def ReLU_grad(Z):
 
 
 def SoftMax(Z):
-    actual_expZ = np.exp(Z - np.max(Z))
+    actual_expZ = np.nan_to_num(np.exp(Z - np.max(Z)))
     return np.divide(actual_expZ, np.sum(actual_expZ, axis=-1).reshape(-1, 1))
 
-def SoftMax_grad(Z):
-    # return 1.
-    # ignore this bullshit, messes everything up
-    actual_expZ = np.exp(Z - np.max(Z))
-    return np.divide(actual_expZ, np.square(np.sum(actual_expZ, axis=-1)).reshape(-1, 1))
-
-def calc_moving_gradient(sG, G):
-    return 0.9 * sG + 0.1 * np.square(G)
-
-
-def calc_loss(Y, y):
-    log_arr = np.array([-1 * np.log(Y[i][np.argmax(y[i])]) for i in range(len(Y))])
-    # print(Y[1])
-    # print(y[1])
-    # print(" loss of 1: ", Y[1][np.argmax(y[1])], "to", np.log(Y[1][np.argmax(y[1])]), end=" ")
-    # print(np.sum(log_arr))
+def CrossEntropy(Y, y):
+    log_arr = np.sum(np.array(-1 * y * np.log(np.clip(Y, 1e-7, 1 - 1e-7))), axis=-1)
+    # print("true:", y)
+    # print("pred:", Y)
+    # print("loss:", log_arr)
     return np.average(log_arr)
 
 
-# def calc_loss(Y, y):
-#     return np.average(-1 * np.log(Y[np.argmax(y)]))
+def CrossEntropy_Softmax_grad(Y, y):
+    return np.subtract(Y, y)  # this represents SoftMax(Z) - y which is equivalent to f' being f(Z) = CrossEntropy(SoftMax(Z))
+
+
+def calc_moving_gradient(vG, G):
+    return 0.9 * vG + 0.1 * np.square(G)
 
 def calc_acc(Y, y):
     acc_arr = np.array([np.argmax(Y[i]) == np.argmax(y[i]) for i in range(len(Y))]).astype('float32')
@@ -108,12 +101,12 @@ def update_RProp(dW1, dB1, dW2, dB2):
 
 
 def update_RMSProp(dW1, dB1, dW2, dB2):
-    global sgW1, sgW2, sgB1, sgB2
-    sgW1 = calc_moving_gradient(sgW1, dW1)
-    sgB1 = calc_moving_gradient(sgB1, dB1)
-    sgW2 = calc_moving_gradient(sgW2, dW2)
-    sgB2 = calc_moving_gradient(sgB2, dB2)
-    return np.sqrt(sgW1) + 1e-7, np.sqrt(sgB1) + 1e-7, np.sqrt(sgW2) + 1e-7, np.sqrt(sgB2) + 1e-7
+    global vW1, vW2, vB1, vB2
+    vW1 = calc_moving_gradient(vW1, dW1)
+    vB1 = calc_moving_gradient(vB1, dB1)
+    vW2 = calc_moving_gradient(vW2, dW2)
+    vB2 = calc_moving_gradient(vB2, dB2)
+    return np.sqrt(vW1) + 1e-7, np.sqrt(vB1) + 1e-7, np.sqrt(vW2) + 1e-7, np.sqrt(vB2) + 1e-7
 
 
 def predict_batch(X):
@@ -134,8 +127,7 @@ def forward_prop(X):
 
 def back_prop(X, Z1, A1, Z2, A2, Y):
     # dZ2 means dC/dZ2 and keeps like that for the others
-    dA2 = np.subtract(A2, Y)
-    dZ2 = np.multiply(dA2, SoftMax_grad(Z2))
+    dZ2 = CrossEntropy_Softmax_grad(A2, Y)  # Z2 is deterministic by A2
     dA1 = np.dot(dZ2, W2.T)
     dZ1 = np.multiply(dA1, ReLU_grad(Z1))
     dW2 = np.dot(A1.T, dZ2)
@@ -144,25 +136,36 @@ def back_prop(X, Z1, A1, Z2, A2, Y):
     dB1 = dZ1
     return dW1, dB1, dW2, dB2
 
-def train(x, y, epochs=10, lr=0.1):
-    global W1, W2, B1, B2
+
+def train(x, y, epochs=10, lr=0.001):
+    global W1, W2, B1, B2, vW1, vW2, vB1, vB2
 
     for e in range(epochs):
+        # print("W1:", W1)
+        # print("B1:", B1)
+        # print("W2:", W1)
+        # print("B2:", B2)
         print("epoch:", e, end="")
         pred = predict_batch(x)
-        print(" loss:", calc_loss(pred, y_train), end="")
-        print(" acc: ", calc_acc(pred, y_train))
+        print(" loss:", CrossEntropy(pred, y), end="")
+        print(" acc: ", calc_acc(pred, y))
+
         range_ = np.arange(len(x))
-        np.random.shuffle(range_)
+        # np.random.shuffle(range_)
         for p in range_:
             dW1, dB1, dW2, dB2 = back_prop(*forward_prop(x[p]), y[p])
             rmsW1, rmsB1, rmsW2, rmsB2 = update_RMSProp(dW1, dB1, dW2, dB2)
-            W1 = np.subtract(W1, dW1 / rmsW1 * lr)
-            B1 = np.subtract(B1, dB1 / rmsB1 * lr)
-            W2 = np.subtract(W2, dW2 / rmsW2 * lr)
-            B2 = np.subtract(B2, dB2 / rmsB2 * lr)
+            W1 = np.subtract(W1, dW1 * lr / rmsW1)
+            B1 = np.subtract(B1, dB1 * lr / rmsB1)
+            W2 = np.subtract(W2, dW2 * lr / rmsW2)
+            B2 = np.subtract(B2, dB2 * lr / rmsB2)
+
+    print("epoch:", epochs, end="")
+    pred = predict_batch(x)
+    print(" loss:", CrossEntropy(pred, y), end="")
+    print(" acc: ", calc_acc(pred, y))
 
 
-train(x_train[:1000], y_train[:1000], epochs=100, lr=0.001)
+train(x_train[:1000], y_train[:1000], epochs=10, lr=0.001)
 
 print("final acc: ", calc_acc(predict_batch(x_test), y_test))
