@@ -1,6 +1,6 @@
 import numpy as np
 
-from mnist_data import *
+from mnist_data import MnistDataloader, training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath
 
 
 mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath, test_labels_filepath)
