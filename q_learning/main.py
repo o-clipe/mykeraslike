@@ -105,5 +105,45 @@ def test():
     cancel_inference()
 
 
-train()
-test()
+def test_with_future_predictions(n_rounds: int, look_at_two: bool = False):
+    def assess_state_action(game_state: Snake, rounds: int, look_at_two: bool) -> (bool, int):
+        actions = np.flip(np.argsort(Q[Q_idx(game_state)]))
+        if not game_state.alive:
+            return False, actions[0]
+        if rounds == 0:
+            return True, actions[0]
+
+        new_state = game_state.__copy__()
+        new_state.move(actions[0])
+        if assess_state_action(new_state, rounds-1, look_at_two)[0]:
+            return True, actions[0]
+        new_state = game_state.__copy__()
+        new_state.move(actions[1])
+        if assess_state_action(new_state, rounds-1, look_at_two)[0]:
+            return True, actions[1]
+        new_state = game_state.__copy__()
+        new_state.move(actions[2])
+        if assess_state_action(new_state, rounds-1, look_at_two)[0] and not look_at_two:
+            return True, actions[2]
+
+        return False, actions[0]
+
+    for i in range(100):
+        game = Snake(GRID, 2)
+        while game.alive:
+            time.sleep(0.05)
+            observations = Q_idx(game)
+            expected, action = assess_state_action(game.__copy__(), n_rounds, look_at_two)
+            future_message = "All good"
+            if not expected:
+                future_message = "DOOMED"
+            elif action != np.argmax(Q[observations]):
+                future_message = f"changed course to {action}"
+
+            inference(game, action, f"{Q[observations]}: {np.argmax(Q[observations])} with Q idx :{observations}"
+                                    f"\n Future message: {future_message}")
+
+
+if __name__ == "__main__":
+    train()
+    test_with_future_predictions(27, look_at_two=True)
