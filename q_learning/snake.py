@@ -9,14 +9,22 @@ class Snake:
     def __init__(self, grid, length):
         self.grid = grid
         self.dimensions = len(grid)
-        self.position = [[d // 2 for d in self.grid] for _ in range(length)]
+        self.position = [tuple([d // 2 for d in self.grid]) for _ in range(length)]
         self.place_candy()
         self.alive = True
         self.score = len(self.position) * 100
 
+    def __copy__(self):
+        copy = Snake(self.grid, 0)
+        copy.position = self.position.copy()
+        copy.candy = self.candy
+        copy.alive = self.alive
+        copy.score = self.score
+        return copy
+
 
     def place_candy(self):
-        self.candy = [random.randint(0, dimension - 1) for dimension in self.grid]
+        self.candy = tuple([random.randint(0, dimension - 1) for dimension in self.grid])
         if self.candy in self.position:
             self.place_candy()
 
@@ -24,9 +32,9 @@ class Snake:
         """Take as direction 2 => [0, 0, 1, 0] => -1 second dimension ... 1 => [0, 1, 0, 0] => +1 first dimension"""
         sign = -1 if direction % self.dimensions == 0 else 1
         dimension = direction // 2
-        new_pos = self.position[0].copy()
+        new_pos = list(self.position[0])
         new_pos[dimension] += sign
-        return self.event(new_pos)
+        return self.event(tuple(new_pos))
 
     def event(self, new_point):
         if new_point in self.position:  # stumbles
