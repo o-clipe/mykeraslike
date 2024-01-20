@@ -2,7 +2,6 @@ from snake import Snake, inference, cancel_inference
 from random import randint
 import numpy as np
 import time
-import curses
 
 GRID = [11, 11]
 RAND_GRID = lambda: [randint(3, 11) * 2 - 1 for _ in range(2)]
@@ -74,7 +73,7 @@ def Q_idx(game: Snake):
 
 
 def train():
-    iterations = 1_000_000
+    iterations = 100_000
     for i in range(iterations):
         game = new_game()
         for j in range(1000):
@@ -88,7 +87,7 @@ def train():
                 action = randint(0, 3)
             currentQ = Q[observations + (action,)]
             reward = game.move(action)
-            print(f"\r{i}/{iterations}", end='')
+            print(f"\r{i+1}/{iterations}", end='')
             maxQ = np.max(Q[Q_idx(game)])
             Q[observations + (action,)] = currentQ + 0.1 * (reward + 0.2 * maxQ - currentQ)
 
